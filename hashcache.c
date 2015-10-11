@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
 		uint32_t generation = 0;
 
 		if (0 != ioctl(fd, FS_IOC_GETVERSION, &generation))
-			if (err != ENOTTY)	// unsupported
+			if (errno != ENOTTY)	// unsupported
 				goto err2;
 
 		// not sure we need generation, also see racy-git
