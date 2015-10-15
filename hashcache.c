@@ -17,19 +17,10 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <sys/xattr.h>
-#include <sys/stat.h>
-#include <linux/fs.h>
-
-#include <attr/xattr.h>
-
+#include <fcntl.h>
 #include <errno.h>
 
-#include "sha2.h"
+#include "hc.h"
 
 
 
@@ -53,7 +44,6 @@ static void usage(FILE* fp, const char* name)
 }
 
 
-enum err_ret { ERR_SUCCESS, ERR_MISMATCH, ERR_USAGE, ERR_SYSTEM, ERR_NOFILE };
 
 int main(int argc, char* argv[])
 {
@@ -118,77 +108,41 @@ int main(int argc, char* argv[])
 		if (-1 == (fd = open(argv[n], O_RDONLY)))
 			goto err1;
 
-		struct stat st;
+		unsigned int flags = 0;
 	
-		if (-1 == fstat(fd, &st))
-			goto err2;
+		if (!ask_update)
+			flags |= HC_NOUPDATE;
 
-		if (!S_ISREG(st.st_mode)) {
+		if (!ask_comp)
+			flags |= HC_NOCOMPUTE;
 
-			fprintf(stderr, "Not a regular file: %s\n", argv[n]);
-			err = ERR_NOFILE;
-			goto err2;
+		if (ask_del)
+			flags |= HC_DELETE;
+
+		if (ask_recomp)
+			flags |= HC_RECOMPUTE;
+
+		unsigned char digest[32];
+		int ret;
+
+		if (0 > (ret = hashcache(digest, fd, flags))) {
+
+			err = -ret;
+
+			if (ERR_NOFILE == err)
+				fprintf(stderr, "Not a regular file: %s\n", argv[n]);
+
+			if (ERR_MISMATCH != err)
+				goto err2;
 		}
 
-		uint64_t ino = st.st_ino;
-		uint64_t size = st.st_size;
-		uint64_t mt = st.st_mtime;
-
-		uint32_t generation = 0;
-
-		if (0 != ioctl(fd, FS_IOC_GETVERSION, &generation))
-			if (errno != ENOTTY)	// unsupported
-				goto err2;
-
-		// not sure we need generation, also see racy-git
-
-		unsigned char str[64] = { 0 };
-		memcpy(str +  0, &ino, 8);
-		memcpy(str +  8, &generation, 4);
-		memcpy(str + 16, &mt, 8);
-		memcpy(str + 24, &size, 8);
-
-		unsigned char buf[64] = { 0 };
-		bool have_attr = true;
-
-		if (64 != fgetxattr(fd, "user.sha256", buf, 64)) {
-	
-		 	// maybe handle wrong size by ignoring it
-
-			if (errno != ENOATTR)
-				goto err2;
-
-			have_attr = false;
-		}
-
-		bool is_upd = have_attr && (0 == memcmp(str, buf, 32));
-
-		// decide what to do
+		bool have_attr = !(ret & HC_RET_NOATTR);
+		bool do_comp = (ret & HC_RET_COMP);
+		bool is_upd = !(ret & HC_RET_STALE);
+		bool mismatch = (ERR_MISMATCH == -ret);
 
 		bool do_check = have_attr && ask_check;
-		bool do_comp = ask_recomp || (!(have_attr && is_upd) && ask_comp);
-		bool do_update = ask_update && do_comp;
-		bool do_delete = have_attr && (ask_del || (!do_comp && !is_upd && ask_update));
 		bool do_show = ask_show;
-
-		memcpy(str + 32, buf + 32, 32);
-
-		if (do_comp) {
-	
-			void* addr;
-			if (MAP_FAILED == (addr = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0)))
-				goto err2;
-	
-			sha256(addr, size, str + 32);
-
-			if (-1 == munmap(addr, size))
-				goto err2;
-		}
-
-		bool mismatch = do_comp && have_attr && (0 != memcmp(str + 32, buf + 32, 32));
-
-		// reconsider update
-		do_update &= !(is_upd && !mismatch);
 
 		if (do_check)
 			mismatch_any |= mismatch;
@@ -202,7 +156,7 @@ int main(int argc, char* argv[])
 				if (!(have_attr || do_comp))
 					printf("##");
 				else
-					printf("%02x", (int)str[32 + i]);
+					printf("%02x", (int)digest[i]);
 
 			// have_attr, is_upd, do_comp, mismatch
 			char states[2][2][2][2] = {
@@ -219,14 +173,6 @@ int main(int argc, char* argv[])
 
 			printf(" %c %s\n", st, argv[n]);
 		}
-
-		if (do_update)
-			if (-1 == fsetxattr(fd, "user.sha256", str, sizeof(str), 0))
-				goto err2;
-
-		if (do_delete)
-			if (-1 == fremovexattr(fd, "user.sha256"))
-				goto err2;
 
 		err = ERR_SUCCESS;
 	err2:
