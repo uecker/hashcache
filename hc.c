@@ -28,6 +28,8 @@
 
 #include "hc.h"
 
+static const char* attribute = "user.hc1_sha256";
+
 
 int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 {
@@ -57,15 +59,16 @@ int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 	// not sure we need generation, also see racy-git
 
 	unsigned char str[64] = { 0 };
-	memcpy(str +  0, &ino, 8);
-	memcpy(str +  8, &generation, 4);
+	memcpy(str +  0, "HC01", 4);
+	memcpy(str +  4, &generation, 4);
+	memcpy(str +  8, &ino, 8);
 	memcpy(str + 16, &mt, 8);
 	memcpy(str + 24, &size, 8);
 
 	unsigned char buf[64] = { 0 };
 	bool have_attr = true;
 
-	if (64 != fgetxattr(fd, "user.sha256", buf, 64)) {
+	if (64 != fgetxattr(fd, attribute, buf, 64)) {
 
 	 	// maybe handle wrong size by ignoring it
 
@@ -103,11 +106,11 @@ int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 	do_update &= !(is_upd && !mismatch);
 
 	if (do_update)
-		if (-1 == fsetxattr(fd, "user.sha256", str, sizeof(str), 0))
+		if (-1 == fsetxattr(fd, attribute, str, sizeof(str), 0))
 			return -ERR_SYSTEM;
 
 	if (do_delete)
-		if (-1 == fremovexattr(fd, "user.sha256"))
+		if (-1 == fremovexattr(fd, attribute))
 			return -ERR_SYSTEM;
 
 	memcpy(digest, str + 32, 32);
