@@ -1,0 +1,9 @@
+
+This is a tiny tool for Linux which computes a sha256 hash of 
+a file and stores it in an extended attribute. It can be used
+to verify file integrity, find duplicates, detect changes, etc.
+
+(Note that it is not intended to detect malicious changes to
+a file, because an attacker who has access to the file could
+also change the cached hash.)
+

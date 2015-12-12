@@ -26,7 +26,7 @@
 
 static void help(void)
 {
-	printf(	"Computes the sha2 hash for files and caches it in an extended attribute.\n"
+	printf(	"Computes the sha256 hash for files and caches it in an extended attribute.\n"
 		"Advanced options (defaults: -scu):\n"
 		"\t-i\tcheck integrity\n"
 		"\t-c\tcompute hash if not cached\n"
