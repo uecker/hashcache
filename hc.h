@@ -8,7 +8,8 @@
 
 #define HC_RET_NOATTR	1
 #define HC_RET_STALE	2
-#define HC_RET_COMP	4
+#define HC_RET_NOCOMP	4
+#define HC_RET_MISMATCH	8
 
 
 enum err_ret { ERR_SUCCESS, ERR_MISMATCH, ERR_USAGE, ERR_SYSTEM, ERR_NOFILE };

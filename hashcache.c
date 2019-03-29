@@ -1,8 +1,8 @@
-/* Copyright 2015. Martin Uecker.
+/* Copyright 2015, 2019 Martin Uecker.
  * All rights reserved. Use of this source code is governed by
  * a BSD-style license which can be found in the LICENSE file.
  *
- * Author: 2015 Martin Uecker <muecker@gwdg.de>
+ * Author: 2015, 2019 Martin Uecker <muecker@gwdg.de>
  *
  * Comment: This is similar to the git index. There are also
  * seem to be similar tools (bitrot.sh, etc.).
@@ -35,6 +35,7 @@ static void help(void)
 		"\t\t  r|efreshed, u|pdated, v|erified, !=unexpected mismatch)\n"
 		"\t-d\tdelete cached hash\n"
 		"\t-u\tupdate cached hash\n"
+		"\t-q\tquiet\n"
 		"\t-h\tprint this help\n");
 }
 
@@ -54,13 +55,14 @@ int main(int argc, char* argv[])
 	bool ask_check = false;
 	bool ask_del = false;
 	bool ask_update = false;
+	bool ask_quiet = false;
 	bool defaults = true;
 	int err = ERR_USAGE;
 
 	bool mismatch_any = false;
 	bool errsys_any = false;
 
-	while (-1 != (c = getopt(argc, argv, "cdhirsu"))) {
+	while (-1 != (c = getopt(argc, argv, "cdhirsuq"))) {
 	
 		switch (c) {
 
@@ -86,6 +88,9 @@ int main(int argc, char* argv[])
 			break;
 		case 'u':
 			ask_update = true;
+			break;
+		case 'q':
+			ask_quiet = true;
 			break;
 		default:
 			goto out2;
@@ -129,26 +134,27 @@ int main(int argc, char* argv[])
 
 			err = -ret;
 
-			if (ERR_NOFILE == err)
-				fprintf(stderr, "Not a regular file: %s\n", argv[n]);
+			if (ERR_NOFILE == err) {
 
-			if (ERR_MISMATCH != err)
-				goto err2;
+				fprintf(stderr, "Not a regular file: %s\n", argv[n]);
+				continue;
+			}
 		}
 
+		bool mismatch = ret & HC_RET_MISMATCH;
+
+		if (mismatch && !ask_quiet && !ask_show)
+			printf("File changed: %s\n", argv[n]);
+
 		bool have_attr = !(ret & HC_RET_NOATTR);
-		bool do_comp = (ret & HC_RET_COMP);
+		bool do_comp = !(ret & HC_RET_NOCOMP);
 		bool is_upd = !(ret & HC_RET_STALE);
-		bool mismatch = (ERR_MISMATCH == -ret);
 
 		bool do_check = have_attr && ask_check;
 		bool do_show = ask_show;
 
 		if (do_check)
 			mismatch_any |= mismatch;
-
-		if (mismatch)
-			printf("File changed: %s\n", argv[n]);
 
 		if (do_show) {
 
@@ -175,7 +181,7 @@ int main(int argc, char* argv[])
 		}
 
 		err = ERR_SUCCESS;
-	err2:
+
 		if (-1 == close(fd))
 			err = ERR_SYSTEM;
 	err1:

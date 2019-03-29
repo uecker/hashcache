@@ -88,7 +88,10 @@ int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 
 	memcpy(str + 32, buf + 32, 32);
 
-	if (do_comp) {
+	if (0 == size)
+		sha256(NULL, 0, str + 32);
+
+	if (do_comp && (size > 0)) {
 
 		void* addr;
 		if (MAP_FAILED == (addr = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0)))
@@ -115,16 +118,16 @@ int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 
 	memcpy(digest, str + 32, 32);
 
-	if (mismatch)
-		return -ERR_MISMATCH;
-
 	unsigned int rflags = 0;
+
+	if (mismatch)
+		rflags |= HC_RET_MISMATCH;
 
 	if (!have_attr)
 		rflags |= HC_RET_NOATTR;
 
-	if (do_comp)
-		rflags |= HC_RET_COMP;
+	if (!do_comp)
+		rflags |= HC_RET_NOCOMP;
 
 	if (!is_upd)
 		rflags |= HC_RET_STALE;
