@@ -7,3 +7,27 @@ to verify file integrity, find duplicates, detect changes, etc.
 a file, because an attacker who has access to the file could
 also change the cached hash.)
 
+
+
+Compute hash if not up-to-date and store the in the attribute,
+then show the hash and status:
+
+hashcache -scu file
+
+
+To quickly find files that have changed, recompute hash
+if the file may have changed and check:
+
+hashcache -ci file
+
+
+To detect file system errors, always recompute the hash
+and check integrity:
+
+hashcache -ri file
+
+
+Delete the hash:
+
+hashcache -d file
+
