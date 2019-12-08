@@ -22,6 +22,8 @@
 
 #include <attr/xattr.h>
 
+#include <time.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include "sha2.h"
@@ -55,7 +57,13 @@ int hashcache(unsigned char digest[32], int fd, unsigned int flags)
 	if (0 != ioctl(fd, FS_IOC_GETVERSION, &generation))
 		if (errno != ENOTTY)	// unsupported
 			return -ERR_SYSTEM;
+#if 1
+	// enforce that changes made after computing the hash
+	// go along with a newer modification time
 
+	if (mt == time(NULL))
+		sleep(1);
+#endif
 	// not sure we need generation, also see racy-git
 
 	unsigned char str[64] = { 0 };
