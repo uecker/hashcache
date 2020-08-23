@@ -9,7 +9,7 @@ also change the cached hash.)
 
 
 
-Compute hash if not up-to-date and store the in the attribute,
+Compute hash if not up-to-date and store it in the attribute,
 then show the hash and status:
 
 hashcache -scu file
