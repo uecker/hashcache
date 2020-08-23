@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
 		bool do_comp = !(ret & HC_RET_NOCOMP);
 		bool is_upd = !(ret & HC_RET_STALE);
 
-		bool do_check = have_attr && ask_check;
+		bool do_check = ask_check;
 		bool do_show = ask_show;
 
 		if (do_check)
@@ -178,6 +178,12 @@ int main(int argc, char* argv[])
 			assert('e' != st);
 
 			printf(" %c %s\n", st, argv[n]);
+		}
+
+		if (ask_check && !have_attr) {
+
+			err = ERR_NOATTR;
+			goto out2;
 		}
 
 		err = ERR_SUCCESS;
